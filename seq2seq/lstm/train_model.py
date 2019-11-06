@@ -7,8 +7,11 @@ import argparse
 
 import numpy as np
 import pandas as pd
+from sklearn.model_selection import train_test_split
 
 from word_preprocess import Preprocess
+from for_model import build_model, use_callback, MyGenerator
+
 
 
 def read_data(data_dir):
@@ -61,6 +64,23 @@ def main(args):
     reply_index, indices = np.unique(reply_index, axis=0, return_index=True)
     comment_index = comment_index[indices]
     print(f'=== Comment and Reply shape: {comment_index.shape} {reply_index.shape}')
+
+    # 
+    model = build_model(args, word_vector)
+    callback_list = use_callback(args)
+    C_train, C_test, R_train, R_test = train_test_split(
+        comment_index, reply_index, 
+        test_size=0.2, 
+        random_state=10
+        )
+    model.fit_generator(
+        MyGenerator(args, C_train, R_train, word_vector, index_pad),  
+        steps_per_epoch=round(C_train.shape[0]/args.batch), epochs=args.epoch, 
+        validation_data=MyGenerator(args, C_test, R_test, word_vector, index_pad),
+        validation_steps=round(C_test.shape[0]/args.batch), 
+        callbacks=callback_list
+        )
+
 
 
 if __name__ == "__main__":
