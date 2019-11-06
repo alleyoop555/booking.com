@@ -32,15 +32,36 @@ def read_data(data_dir):
 
 
 def main(args):
-    '''讀取負評及回覆 並將回覆的頭尾加入特殊字元'''
+    # 讀取負評及回覆 並將回覆的頭尾加入特殊字元 
     comment, reply = read_data(args.data_dir)
     for idx, item in enumerate(reply):
         reply[idx] = '句子開頭' + item + '句子結尾'
 
-    # 詞轉向量 load=True代表使用已經訓練好的詞向量模型(word2vec)
+    #  詞轉向量 load=True代表使用已經訓練好的詞向量模型(word2vec) 
     tokens = ['句子開頭', '句子結尾', '飯店名稱']
     preprocess = Preprocess(comment+reply, args, tokens=tokens)
-    print(preprocess.data)
+    word_vector = preprocess.get_embedding(load=False)
+    indices = preprocess.get_indices()
+    comment_index = indices[:len(comment)]; reply_index = indices[len(comment):]
+    print(f'=== Comment and Reply shape: {comment_index.shape} {reply_index.shape}')
+
+    # 去掉句子長度超過seq_len的評論及回應 
+    index_end = preprocess.word2index['句子結尾']
+    index_pad = preprocess.word2index['<PAD>']
+    remain_index = []
+    for idx, item in enumerate(zip(comment_index, reply_index)):
+        if (item[0][-1]==index_pad) & \
+           (item[1][-1]==index_end or item[1][-1]==index_pad):
+            remain_index.append(idx)
+    comment_index = comment_index[remain_index]
+    reply_index = reply_index[remain_index]
+    print(f'=== Comment and Reply shape: {comment_index.shape} {reply_index.shape}')
+
+    # 去掉重複的句子
+    reply_index, indices = np.unique(reply_index, axis=0, return_index=True)
+    comment_index = comment_index[indices]
+    print(f'=== Comment and Reply shape: {comment_index.shape} {reply_index.shape}')
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
